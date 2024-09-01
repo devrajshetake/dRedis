@@ -114,34 +114,37 @@ func getCrlfIndex(data []byte) int {
 func Encode(data interface{}) []byte {
 	switch data := data.(type) {
 	case string:
-		return encodeSimpleString(data)
+		return EncodeSimpleString(data)
 	case int:
-		return encodeInteger(data)
+		return EncodeInteger(data)
 	case []string:
-		return encodeArray(data)
+		return EncodeArray(data)
 	default:
 		return nil
 	}
 }
 
-func encodeSimpleString(data string) []byte {
+func EncodeSimpleString(data string) []byte {
 	return []byte("+" + data + "\r\n")
 }
 
-func encodeInteger(data int) []byte {
+func EncodeInteger(data int) []byte {
 	return []byte(":" + strconv.Itoa(data) + "\r\n")
 }
 
-func encodeArray(data []string) []byte {
+func EncodeArray(data []string) []byte {
 	result := []byte("*" + strconv.Itoa(len(data)) + "\r\n")
 
 	for _, element := range data {
-		result = append(result, encodeBulkString(element)...)
+		result = append(result, EncodeBulkString(element)...)
 	}
 
 	return result
 }
 
-func encodeBulkString(data string) []byte {
+func EncodeBulkString(data string) []byte {
+	if data == "" {
+		return []byte("$-1\r\n")
+	}
 	return []byte("$" + strconv.Itoa(len(data)) + "\r\n" + data + "\r\n")
 }
