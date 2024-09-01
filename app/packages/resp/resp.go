@@ -148,3 +148,7 @@ func EncodeBulkString(data string) []byte {
 	}
 	return []byte("$" + strconv.Itoa(len(data)) + "\r\n" + data + "\r\n")
 }
+
+func EncodeError(data string) []byte {
+	return []byte("-" + data + "\r\n")
+}

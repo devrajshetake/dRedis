@@ -50,12 +50,36 @@ func handleEcho(args []string) ([]byte, error) {
 }
 
 func handleSet(args []string) ([]byte, error) {
-	if len(args) != 2 {
+	if len(args) < 2 || len(args)%2 != 0 {
 		return nil, errors.New("ERR wrong number of arguments for 'set' command")
 	}
+	key := args[0]
+	value := args[1]
+	dRedis[key] = value
 
-	dRedis[args[0]] = args[1]
+	for i := 2; i < len(args); i += 2 {
+		arg := args[i]
+		argValue := args[i+1]
+
+		err := setArguments(key, arg, argValue)
+		if err != nil {
+			return resp.EncodeError("Invalid arguments for 'SET'"), err
+		}
+	}
+
 	return resp.Encode(rESPONSE_OK), nil
+}
+
+func setArguments(key string, arg string, argValue string) error {
+	arg = strings.ToUpper(arg)
+	switch arg {
+	case "PX":
+		err := setExpiry(argValue, key)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func handleGet(args []string) ([]byte, error) {
