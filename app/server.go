@@ -15,11 +15,26 @@ func main() {
 
 	fmt.Println("dRedis Listening on port 6379...")
 
-	conn, err := l.Accept()
-	conn.Write([]byte("+PONG\r\n"))
+	for {
+		conn, err := l.Accept()
 
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
+		if err != nil {
+			fmt.Println("Error accepting connection: ", err.Error())
+			os.Exit(1)
+		}
+		go handleRequest(conn)
+	}
+}
+
+func handleRequest(conn net.Conn) {
+	for {
+		buf := make([]byte, 1024)
+		_, err := conn.Read(buf)
+		if err != nil {
+			fmt.Println("Error reading:", err.Error())
+			break
+		}
+		conn.Write([]byte("+PONG\r\n"))
+		fmt.Println("PONG sent")
 	}
 }
