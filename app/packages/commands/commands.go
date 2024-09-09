@@ -2,12 +2,15 @@ package commands
 
 import (
 	"errors"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/codecrafters-io/redis-starter-go/app/packages/dredis"
 	"github.com/codecrafters-io/redis-starter-go/app/packages/resp"
 )
 
-var dRedis = make(map[string]string)
+var dRedis = make(map[string]dredis.CacheItem)
 
 func Execute(command string, args []string) ([]byte, error) {
 	command = strings.ToUpper(command)
@@ -19,8 +22,8 @@ func Execute(command string, args []string) ([]byte, error) {
 		res, _ := handleEcho(args)
 		return res, nil
 	case "SET":
-		res, _ := handleSet(args)
-		return res, nil
+		res, err := handleSet(args)
+		return res, err
 	case "GET":
 		res, _ := handleGet(args)
 		return res, nil
@@ -55,31 +58,45 @@ func handleSet(args []string) ([]byte, error) {
 	}
 	key := args[0]
 	value := args[1]
-	dRedis[key] = value
+	cacheItem := dredis.CacheItem{
+		Value:     value,
+		CacheType: "string",
+		ExpiresAt: -1,
+	}
 
+	var err error
 	for i := 2; i < len(args); i += 2 {
 		arg := args[i]
 		argValue := args[i+1]
 
-		err := setArguments(key, arg, argValue)
+		cacheItem, err = setArguments(cacheItem, arg, argValue)
 		if err != nil {
 			return resp.EncodeError("Invalid arguments for 'SET'"), err
 		}
 	}
 
+	dRedis[key] = cacheItem
 	return resp.Encode(rESPONSE_OK), nil
 }
 
-func setArguments(key string, arg string, argValue string) error {
+func setArguments(cacheItem dredis.CacheItem, arg string, argValue string) (dredis.CacheItem, error) {
 	arg = strings.ToUpper(arg)
 	switch arg {
 	case "PX":
-		err := setExpiry(argValue, key)
+		ttl, err := strconv.Atoi(argValue)
 		if err != nil {
-			return err
+			return cacheItem, errors.New("ERR invalid value " + argValue + " for expiry")
+		}
+		if ttl < -1 {
+			return cacheItem, errors.New("ERR invalid expire time in SET")
+		}
+		if ttl == -1 {
+			cacheItem.ExpiresAt = -1
+		} else {
+			cacheItem.ExpiresAt = time.Duration(time.Now().UnixMilli() + int64(ttl))
 		}
 	}
-	return nil
+	return cacheItem, nil
 }
 
 func handleGet(args []string) ([]byte, error) {
@@ -88,8 +105,9 @@ func handleGet(args []string) ([]byte, error) {
 	}
 
 	value, ok := dRedis[args[0]]
-	if !ok {
+	if !ok || (value.ExpiresAt != -1 && value.ExpiresAt < time.Duration(time.Now().UnixMilli())) {
 		return resp.EncodeBulkString(rESPONSE_EMPTY), nil
 	}
-	return resp.Encode(value), nil
+
+	return resp.Encode(value.Value), nil
 }

@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func setExpiry(value string, key string) error {
+func SetExpiry(value string, key string) error {
 	ex, err := strconv.Atoi(value)
 	if err != nil {
 		return fmt.Errorf("invalid value %s for expiry", value)
